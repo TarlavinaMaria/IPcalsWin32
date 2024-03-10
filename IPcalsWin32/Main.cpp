@@ -9,6 +9,8 @@ BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInst, LPSTR lpCmdLine, INT nCmdShow)
 {
 	DialogBoxParam(hInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, DlgProc, 0);
+
+	
 }
 
 BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -20,8 +22,18 @@ BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		HWND hIPaddress = GetDlgItem(hwnd, IDC_IPADDRESS);
 		SetFocus(hIPaddress);
 
+		// Получение дескриптора Spin control
 		HWND hSpinPrefix = GetDlgItem(hwnd, IDC_SPIN_PREFIX);
 
+		
+
+		// Инвертирование стрелок
+		DWORD style = (DWORD)GetWindowLongPtr(hSpinPrefix, GWL_STYLE);
+		style ^= UDS_HORZ;
+		SetWindowLongPtr(hSpinPrefix, GWL_STYLE, style);
+
+		// Ограничение максимального значения до 32
+		SendMessage(hSpinPrefix, UDM_SETRANGE32, 0, 32);
 	}
 	break;
 	case WM_NOTIFY:
