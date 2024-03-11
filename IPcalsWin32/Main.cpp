@@ -5,12 +5,12 @@
 #include"resource.h"
 
 BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+VOID GetInfo(HWND hwnd);
+VOID GetIPBytes(DWORD dwIPaddress, CHAR szIPaddress[]);
 
 INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInst, LPSTR lpCmdLine, INT nCmdShow)
 {
 	DialogBoxParam(hInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, DlgProc, 0);
-
-	
 }
 
 BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -25,15 +25,8 @@ BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		// Получение дескриптора Spin control
 		HWND hSpinPrefix = GetDlgItem(hwnd, IDC_SPIN_PREFIX);
 
-		
-
-		// Инвертирование стрелок
-		DWORD style = (DWORD)GetWindowLongPtr(hSpinPrefix, GWL_STYLE);
-		style ^= UDS_HORZ;
-		SetWindowLongPtr(hSpinPrefix, GWL_STYLE, style);
-
 		// Ограничение максимального значения до 32
-		SendMessage(hSpinPrefix, UDM_SETRANGE32, 0, 32);
+		SendMessage(hSpinPrefix, UDM_SETRANGE, 0, MAKELPARAM(32,0));
 	}
 	break;
 	case WM_NOTIFY:
@@ -89,8 +82,26 @@ BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
+		case IDC_EDIT_PREFIX:
+		{
+			if (HIWORD(wParam) == EN_UPDATE)
+			{
+				HWND hEditPrefix = GetDlgItem(hwnd, IDC_EDIT_PREFIX);
+				CONST INT SIZE = 5;
+				CHAR sz_prefix[SIZE] = {};
+				SendMessage(hEditPrefix, WM_GETTEXT, SIZE, (LPARAM)sz_prefix);
+				DWORD dwPrefix = atoi(sz_prefix);
+				if (dwPrefix == 0)break;
+				DWORD dwIPmask = UINT_MAX;
+				dwIPmask >>= (32 - dwPrefix);
+				dwIPmask <<= (32 - dwPrefix);
+				SendMessage(GetDlgItem(hwnd, IDC_IPMASK), IPM_SETADDRESS, 0, (LPARAM)dwIPmask);
+			}
+		}
+		break;
 		case IDOK:
 		{
+				GetInfo(hwnd);
 
 		}
 		break;
@@ -100,4 +111,52 @@ BOOL CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_CLOSE:EndDialog(hwnd, 0); break;
 	}
 	return FALSE;
+}
+VOID GetInfo(HWND hwnd)
+{
+	HWND hIPaddress = GetDlgItem(hwnd, IDC_IPADDRESS);
+	HWND hIPmask = GetDlgItem(hwnd, IDC_IPMASK);
+	HWND hStaticInfo = GetDlgItem(hwnd, IDC_STATIC_INFO);
+
+	DWORD dwIPaddress = 0;
+	DWORD dwIPmask = 0;
+	SendMessage(hIPaddress, IPM_GETADDRESS, 0, (LPARAM)&dwIPaddress);
+	SendMessage(hIPmask, IPM_GETADDRESS, 0, (LPARAM)&dwIPmask);
+
+	CONST INT SIZE = 256;
+	CHAR szAllInfo[SIZE]{};
+	CHAR szInfo[SIZE]{};
+
+	DWORD dwNET_IPaddress = dwIPaddress & dwIPmask;
+	CHAR szNET_IPaddress[17]{};
+	GetIPBytes(dwNET_IPaddress, szNET_IPaddress);
+	//strcpy(szNetworkAddress, GetIPBytes(dwNET_IPaddress));
+	sprintf(szInfo, "Network address: \t%s\n", szNET_IPaddress);
+	strcat(szAllInfo, szInfo);
+
+	DWORD dwBroadcst = dwIPaddress | ~dwIPmask;
+	CHAR szBroadcastAddress[17] = {};
+	GetIPBytes(dwBroadcst, szBroadcastAddress);
+	sprintf(szInfo, "Broadcast address: \t%s\n", szBroadcastAddress);
+	strcat(szAllInfo, szInfo);
+
+	SendMessage(hStaticInfo, WM_SETTEXT, 0, (LPARAM)szAllInfo);
+}
+VOID GetIPBytes(DWORD dwIPaddress, CHAR szIPaddress[])
+{
+	UCHAR bytes[5] = {};
+	for (int i = 4-1; i >= 0; i--)
+	{
+		bytes[i] = dwIPaddress & 0xFF;
+		dwIPaddress >>= 8;
+	}
+	//CHAR string[16] = {};
+	for (int i = 0; i < 4; i++)
+	{
+		CHAR byte[4];
+		sprintf(byte, "%i", bytes[i]);
+		strcat(szIPaddress, byte);
+		strcat(szIPaddress, ".");
+	}
+	*strrchr(szIPaddress, '.') = 0;
 }
